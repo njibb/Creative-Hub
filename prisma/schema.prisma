@@ -1,0 +1,179 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ==========================================
+// 1. DATABASE ANGGOTA & PENGURUS (SEKRETARIS)
+// ==========================================
+model Anggota {
+  id        String   @id @default(cuid())
+  nama      String
+  divisi    String   // Cth: Humas, Danus, Acara
+  jabatan   String   // Cth: Anggota, Koordinator, Ketua
+  no_wa     String   // Berguna buat fitur auto-chat WA nanti
+  alamat    String?
+  isActive  Boolean  @default(true) // Status aktif/non-aktif pengurus
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// 2. E-SURAT (MASUK & KELUAR - SEKRETARIS)
+// ==========================================
+model Surat {
+  id          String    @id @default(cuid())
+  tipe        TipeSurat 
+  nomor_surat String    @unique // Cth: 001/KT-RW/VI/2026
+  perihal     String
+  tujuan_asal String    // KELUAR: Tujuan surat (Bapak RW). MASUK: Asal surat (Kelurahan)
+  tanggal     DateTime
+  file_url    String?   // Link PDF hasil generate atau link foto surat masuk
+  keterangan  String?
+  createdAt   DateTime  @default(now())
+}
+
+enum TipeSurat {
+  MASUK
+  KELUAR
+}
+
+// ==========================================
+// 3. NOTULENSI RAPAT DIGITAL (SEKRETARIS)
+// ==========================================
+model Notulensi {
+  id           String   @id @default(cuid())
+  agenda       String   // Cth: Rapat Persiapan 17-an
+  tanggal      DateTime
+  lokasi       String?
+  daftar_hadir String   // Bisa simpan nama-nama yang hadir dipisah koma
+  hasil_rapat  String   @db.Text // Teks panjang isi kesimpulan rapat
+  notulis      String   // Nama yang mencatat
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ==========================================
+// 4. USER AUTHENTICATION (SEKRETARIS, LOGISTIK, CREATIVE)
+// ==========================================
+enum UserRole {
+  SEKRETARIS
+  BENDAHARA
+  KETUA
+  LOGISTIK
+  CREATIVE  // <--- TAMBAHAN AKSES UNTUK ANAK CREATIVE
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String   // Password harus di-hash (misal pakai bcrypt)
+  role      UserRole @default(SEKRETARIS)
+  createdAt DateTime @default(now())
+
+  @@map("users")
+}
+
+model Rapat {
+  id        String   @id @default(cuid())
+  judul     String
+  tanggal   DateTime
+  pic       String   // Penanggung Jawab / Notulen
+  keputusan String   @db.Text
+  createdAt DateTime @default(now())
+}
+
+model kalenderKerja {
+  id        String   @id @default(cuid())
+  judul     String
+  deskripsi String?
+  tanggal   DateTime
+  createdAt DateTime @default(now())
+}
+
+// ==========================================
+// 5. DATABASE INVENTARIS BARANG (LOGISTIK)
+// ==========================================
+model Barang {
+  id             String       @id @default(cuid())
+  nama           String
+  kategori       String       
+  total_stok     Int
+  stok_tersedia  Int          
+  kondisi        String       @default("Baik") 
+  peminjaman     Peminjaman[] 
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Peminjaman {
+  id              String    @id @default(cuid())
+  nama_peminjam   String
+  barangId        String
+  barang          Barang    @relation(fields: [barangId], references: [id])
+  jumlah_pinjam   Int
+  tanggal_pinjam  DateTime  @default(now())
+  tanggal_kembali DateTime? 
+  status          String    @default("DIPINJAM") 
+  keterangan      String?
+}
+
+// ==========================================
+// 6. DAFTAR BELANJA & PENGADAAN (LOGISTIK)
+// ==========================================
+model DaftarBelanja {
+  id              String   @id @default(cuid())
+  nama_barang     String
+  jumlah          Int
+  estimasi_harga  Int?     
+  alasan          String
+  status          String   @default("DIAJUKAN") 
+  tanggal_aju     DateTime @default(now())
+}
+
+// ==========================================
+// 7. DIVISI CREATIVE (BRAND KIT, KONTEN, DOKUMENTASI)
+// ==========================================
+model CreativeAsset {
+  id            String   @id @default(cuid())
+  nama_aset     String
+  kategori      String   // Contoh: Logo, Template PPT, Banner, Feeds, Story
+  link_file     String   // Link download (Google Drive, Cloudinary, dll)
+  caption       String?  @db.Text // Opsional: Untuk nyimpen caption siap copy
+  createdAt     DateTime @default(now())
+}
+
+model ContentCalendar {
+  id            String   @id @default(cuid())
+  judul_konten  String
+  platform      String   // Contoh: Instagram, TikTok, YouTube
+  pic           String   // Penanggung jawab (Take/Edit)
+  tgl_take      DateTime
+  tgl_tayang    DateTime
+  status        String   // Contoh: IDEATION, EDITING, READY, PUBLISHED
+  link_draft    String?  // Link review video/draft desain sebelum tayang
+}
+
+model DokumentasiAcara {
+  id            String   @id @default(cuid())
+  nama_kegiatan String
+  tgl_kegiatan  DateTime
+  link_drive    String   // Link folder Google Drive utama
+  cover_url     String?  // Link foto highlight untuk preview gallery
+}
+
+model EventDocumentation {
+  id          String   @id @default(cuid())
+  nama_acara  String
+  tgl_acara   DateTime
+  drive_link  String   // Buat nyimpen link/folder ID Google Drive
+  createdAt   DateTime @default(now())
+}
