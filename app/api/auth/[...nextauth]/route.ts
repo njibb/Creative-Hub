@@ -1,12 +1,7 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma"; // Ambil instance prisma yang sudah di-singleton-kan di lib/prisma.ts
 import bcrypt from "bcryptjs";
-
-// Tambahin check biar prisma client gak kedouble pas hot-reload
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
-const prisma = globalForPrisma.prisma || new PrismaClient();
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
 export const authOptions = {
   providers: [
@@ -20,6 +15,7 @@ export const authOptions = {
         if (!credentials?.email || !credentials?.password) return null;
 
         try {
+          // Sekarang kita pakai 'prisma' yang sudah di-import di atas
           const user = await prisma.user.findUnique({
             where: { email: credentials.email }
           });
